@@ -370,6 +370,7 @@ export default function App() {
                   </label>
                   <input
                     type="text" // Cambiado de 'number' a 'text'
+                    inputMode="decimal" // --- CAMBIO AQUÍ ---
                     id={`target-${index}`}
                     className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-300 text-md bg-white text-gray-900"
                     placeholder="Ej: 200000"
@@ -387,6 +388,7 @@ export default function App() {
                   <div className="flex items-center space-x-2">
                     <input
                       type="text" // Cambiado de 'number' a 'text'
+                      inputMode="decimal" // --- CAMBIO AQUÍ ---
                       id={`new-sale-${index}`}
                       className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-300 text-md bg-white text-gray-900"
                       placeholder="Ej: 10000"
