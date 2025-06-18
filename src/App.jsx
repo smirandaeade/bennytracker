@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import bennyLogo from './assets/benny-logo.jpeg';
 
 // Define los tramos horarios fijos con AM/PM explícito en todos los horarios
 const tramoTimes = [
@@ -518,7 +519,7 @@ export default function App() {
           <p>Desarrollado para simplificar la gestión de metas de venta.</p>
           {/* Logo de la empresa */}
           <img
-            src="src/assets/benny-logo.jpeg"
+            src={bennyLogo}
             alt="Benny Logo"
             className="mx-auto mt-4 rounded-full shadow-lg" // Elimina w-20 h-20
             style={{ width: 'auto', height: 'auto', maxWidth: '100px', maxHeight: '100px' }} // Permite dimensiones intrínsecas, con un max-size opcional
