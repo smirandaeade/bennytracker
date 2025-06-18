@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+// La importación del logo se mantiene como la proporcionaste.
+// Funcionará en tu entorno local donde el archivo 'benny-logo.jpeg' está disponible.
 import bennyLogo from './assets/benny-logo.jpeg';
 
 // Define los tramos horarios fijos con AM/PM explícito en todos los horarios
@@ -24,7 +26,7 @@ const formatCLP = (amount) => {
 // Helper para convertir la hora de string (ej. "10:00 AM") a minutos desde la medianoche (24h)
 const parseTime = (timeStr) => {
   const parts = timeStr.split(' ');
-  const [hourMin, period] = parts.length === 2 ? parts : [parts[0], null]; 
+  const [hourMin, period] = parts.length === 2 ? parts : [parts[0], null];
   let [hours, minutes] = hourMin.split(':').map(Number);
 
   if (period === 'PM' && hours !== 12) {
@@ -49,6 +51,52 @@ export default function App() {
   const [newSaleInput, setNewSaleInput] = useState(Array(tramoTimes.length).fill(''));
   const [currentActiveTramoIndex, setCurrentActiveTramoIndex] = useState(-1);
 
+  // --- INICIO: LÓGICA PARA GUARDAR Y RESTAURAR DATOS ---
+
+  // useEffect para cargar los datos desde localStorage al iniciar la app
+  useEffect(() => {
+    const savedData = localStorage.getItem('salesTrackerData');
+    const today = new Date().toISOString().split('T')[0]; // Formato YYYY-MM-DD
+
+    if (savedData) {
+      try {
+        const parsedData = JSON.parse(savedData);
+        // Comprueba si los datos guardados son de hoy
+        if (parsedData.date === today) {
+          // Si son de hoy, restaura las metas y las ventas
+          if (parsedData.targets && parsedData.sales) {
+            setTramoTargets(parsedData.targets);
+            setTramoSales(parsedData.sales);
+          }
+        } else {
+          // Si son de un día anterior, limpia el almacenamiento
+          localStorage.removeItem('salesTrackerData');
+        }
+      } catch (error) {
+        console.error("Error al parsear datos de localStorage:", error);
+        // Si hay un error, limpia para evitar problemas
+        localStorage.removeItem('salesTrackerData');
+      }
+    }
+  }, []); // El array vacío asegura que se ejecute solo una vez al montar el componente
+
+  // useEffect para guardar los datos en localStorage cada vez que cambien
+  useEffect(() => {
+    const today = new Date().toISOString().split('T')[0];
+    const dataToStore = {
+      date: today,
+      targets: tramoTargets,
+      sales: tramoSales,
+    };
+    // No guardar si el estado es el inicial (todo vacío), para no sobreescribir datos cargados
+    if (tramoTargets.some(t => t !== '') || tramoSales.some(s => s.length > 0)) {
+        localStorage.setItem('salesTrackerData', JSON.stringify(dataToStore));
+    }
+  }, [tramoTargets, tramoSales]); // Se ejecuta cada vez que las metas o ventas cambian
+
+  // --- FIN: LÓGICA PARA GUARDAR Y RESTAURAR DATOS ---
+
+
   // useEffect para determinar el tramo activo basado en la hora actual
   useEffect(() => {
     const updateActiveTramo = () => {
@@ -58,10 +106,10 @@ export default function App() {
       for (let i = 0; i < tramoTimes.length; i++) {
         const [startTimeStr] = tramoTimes[i].split(' - ');
         const startMinutes = parseTime(startTimeStr);
-        
+
         // Determinar el tramo activo: la hora actual es después de la hora de inicio Y antes de la hora de inicio del próximo tramo
         if (currentMinutes >= startMinutes) {
-          if (i === tramoTimes.length - 1 || currentMinutes < parseTime(tramoTimes[i+1].split(' - ')[0])) {
+          if (i === tramoTimes.length - 1 || currentMinutes < parseTime(tramoTimes[i + 1].split(' - ')[0])) {
             activeIndex = i;
             break; // Se encontró el tramo activo, salir del bucle
           }
@@ -86,6 +134,8 @@ export default function App() {
 
   // Función auxiliar para calcular las ventas totales de un tramo específico
   const calculateTramoTotalSales = (index) => {
+    // Comprobación para asegurarse de que tramoSales[index] existe y es un array
+    if (!tramoSales[index] || !Array.isArray(tramoSales[index])) return 0;
     return tramoSales[index].reduce((acc, sale) => acc + (parseFloat(sale.value) || 0), 0);
   };
 
@@ -109,7 +159,7 @@ export default function App() {
     // Iterar a través de los tramos pasados (hasta el tramo activo actual)
     for (let i = 0; i < tramoTimes.length; i++) {
       if (i < currentActiveTramoIndex) {
-          totalDeficit += calculateRemainingForCurrentTramo(i); // Sumar lo que falta de tramos anteriores
+        totalDeficit += calculateRemainingForCurrentTramo(i); // Sumar lo que falta de tramos anteriores
       }
     }
     return totalDeficit;
@@ -269,13 +319,13 @@ export default function App() {
               // El déficit acumulado solo se calcula si el tramo anterior no cumplió su meta
               deficitPreviousTramo = calculateRemainingForCurrentTramo(index - 1);
             }
-            
+
             // Verificar si el déficit del tramo anterior es recuperado por el superávit del tramo actual
             const previousTramoRecovered = index > 0 && deficitPreviousTramo > 0 && surplusCurrentTramo >= deficitPreviousTramo;
-            
+
             // Calcular el déficit restante del tramo anterior después de considerar el superávit del tramo actual
             const remainingDeficitFromPreviousAfterCurrentSurplus = Math.max(0, deficitPreviousTramo - surplusCurrentTramo);
-            
+
             // Monto total a reportar para el tramo actual (déficit actual + déficit restante del anterior)
             const totalToReport = deficitCurrentTramo + remainingDeficitFromPreviousAfterCurrentSurplus;
 
@@ -294,11 +344,11 @@ export default function App() {
 
             if (index === currentActiveTramoIndex) {
               // Segmento activo: Verde
-              tramoBgColorClass = 'bg-green-100 border-green-500'; 
-              tramoRingClass = 'ring-4 ring-green-400 shadow-xl'; 
+              tramoBgColorClass = 'bg-green-100 border-green-500';
+              tramoRingClass = 'ring-4 ring-green-400 shadow-xl';
             }
             // Los segmentos pasados y futuros permanecen con el color predeterminado (gris).
-            
+
             return (
               <div
                 key={index}
@@ -323,7 +373,7 @@ export default function App() {
                     id={`target-${index}`}
                     className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-300 text-md bg-white text-gray-900"
                     placeholder="Ej: 200000"
-                    value={tramoTargets[index]}
+                    value={tramoTargets[index] || ''}
                     onChange={(e) => handleTramoTargetChange(index, e)}
                     min="0"
                   />
@@ -340,7 +390,7 @@ export default function App() {
                       id={`new-sale-${index}`}
                       className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-300 text-md bg-white text-gray-900"
                       placeholder="Ej: 10000"
-                      value={newSaleInput[index]}
+                      value={newSaleInput[index] || ''}
                       onChange={(e) => handleNewSaleInputChange(index, e)}
                       onKeyPress={(e) => {
                         if (e.key === 'Enter') {
@@ -359,7 +409,7 @@ export default function App() {
                 </div>
 
                 {/* Lista de ventas añadidas para este segmento */}
-                {tramoSales[index].length > 0 && (
+                {tramoSales[index] && tramoSales[index].length > 0 && (
                   <div className="mb-4">
                     <p className="text-sm font-medium text-gray-600 mb-1">Ventas registradas:</p>
                     <ul className="list-disc list-inside text-sm text-gray-700 bg-gray-100 p-2 rounded-md max-h-20 overflow-y-auto">
@@ -409,7 +459,7 @@ export default function App() {
                     <span className={`font-bold ml-1 ${deficitCurrentTramo > 0 ? 'text-red-500' : 'text-green-500'}`}>
                       {formatCLP(deficitCurrentTramo)}
                     </span>
-                    {deficitCurrentTramo > 0 && 
+                    {deficitCurrentTramo > 0 &&
                       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" className="inline-block ml-1">
                         <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" fill="#FCD34D" stroke="#D97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"></path> {/* Amarillo con borde naranja */}
                         <line x1="12" y1="9" x2="12" y2="13" stroke="#D97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"></line>
@@ -433,7 +483,7 @@ export default function App() {
                       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" className="inline-block mr-1">
                         <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" fill="#FCD34D" stroke="#D97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"></polygon> {/* Dorado con borde naranja */}
                       </svg>
-                      ¡Tramo anterior recuperado! 
+                      ¡Tramo anterior recuperado!
                     </p>
                   )}
                   {shouldShowCombinedDeficitLine && (
@@ -442,7 +492,7 @@ export default function App() {
                       <span className={`font-bold ml-1 ${totalToReport > 0 ? 'text-red-600' : 'text-green-600'}`}>
                         {formatCLP(totalToReport)}
                       </span>
-                      {totalToReport > 0 && 
+                      {totalToReport > 0 &&
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" className="inline-block ml-1">
                           <line x1="12" y1="5" x2="12" y2="19" stroke="#EF4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"></line>
                           <polyline points="19 12 12 19 5 12" stroke="#EF4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"></polyline>
@@ -493,9 +543,9 @@ export default function App() {
             <span className={`text-3xl font-extrabold ml-1 ${remainingForDailyTarget > 0 ? 'text-red-600' : 'text-green-600'}`}>
               {formatCLP(remainingForDailyTarget)}
             </span>
-            {remainingForDailyTarget > 0 && 
+            {remainingForDailyTarget > 0 &&
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="inline-block ml-1">
-                <path d="M12 5v14m7-7l-7 7-7-7"/>
+                <path d="M12 5v14m7-7l-7 7-7-7" />
               </svg>
             }
           </p>
@@ -505,7 +555,7 @@ export default function App() {
             <span className={`font-bold ml-1 ${totalTramoDeficit > 0 ? 'text-red-600' : 'text-green-600'}`}>
               {formatCLP(totalTramoDeficit)}
             </span>
-            {totalTramoDeficit > 0 && 
+            {totalTramoDeficit > 0 &&
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" className="inline-block ml-1">
                 <line x1="12" y1="5" x2="12" y2="19" stroke="#EF4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"></line>
                 <polyline points="19 12 12 19 5 12" stroke="#EF4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"></polyline>
@@ -523,7 +573,7 @@ export default function App() {
             alt="Benny Logo"
             className="mx-auto mt-4 rounded-full shadow-lg" // Elimina w-20 h-20
             style={{ width: 'auto', height: 'auto', maxWidth: '100px', maxHeight: '100px' }} // Permite dimensiones intrínsecas, con un max-size opcional
-            onError={(e) => { e.target.onerror = null; e.target.src='https://placehold.co/100x100/cccccc/333333?text=Logo' }} // Ajusta placeholder al mismo tamaño asumido
+            onError={(e) => { e.target.onerror = null; e.target.src = 'https://placehold.co/100x100/cccccc/333333?text=Logo' }} // Ajusta placeholder al mismo tamaño asumido
           />
         </footer>
       </div>
