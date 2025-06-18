@@ -7,7 +7,7 @@ const tramoTimes = [
   '02:00 PM - 04:00 PM',
   '04:00 PM - 06:00 PM',
   '06:00 PM - 08:00 PM',
-  '08:00 PM - 10:00 PM',
+  '08:00 PM - 10:00 PM', // Nuevo tramo añadido
 ];
 
 // Función para formatear el monto a CLP (Peso Chileno)
@@ -23,7 +23,7 @@ const formatCLP = (amount) => {
 // Helper para convertir la hora de string (ej. "10:00 AM") a minutos desde la medianoche (24h)
 const parseTime = (timeStr) => {
   const parts = timeStr.split(' ');
-  const [hourMin, period] = parts.length === 2 ? parts : [parts[0], null];
+  const [hourMin, period] = parts.length === 2 ? parts : [parts[0], null]; 
   let [hours, minutes] = hourMin.split(':').map(Number);
 
   if (period === 'PM' && hours !== 12) {
@@ -42,60 +42,14 @@ const getChileanCurrentMinutes = () => {
   return chileanTime.getHours() * 60 + chileanTime.getMinutes();
 };
 
-// Helper para obtener la fecha actual en formato 'YYYY-MM-DD' desde la zona horaria de Chile
-const getChileanCurrentDate = () => {
-  const now = new Date();
-  const chileanTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/Santiago' }));
-  const year = chileanTime.getFullYear();
-  const month = (chileanTime.getMonth() + 1).toString().padStart(2, '0');
-  const day = chileanTime.getDate().toString().padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
-
 export default function App() {
-  // Estado inicial de la aplicación, cargado desde localStorage o valores por defecto
   const [tramoTargets, setTramoTargets] = useState(Array(tramoTimes.length).fill(''));
   const [tramoSales, setTramoSales] = useState(tramoTimes.map(() => []));
   const [newSaleInput, setNewSaleInput] = useState(Array(tramoTimes.length).fill(''));
   const [currentActiveTramoIndex, setCurrentActiveTramoIndex] = useState(-1);
 
-  // useEffect para cargar los datos al inicio y determinar el tramo activo
+  // useEffect para determinar el tramo activo basado en la hora actual
   useEffect(() => {
-    const today = getChileanCurrentDate();
-    console.log(`[LOAD EFFECT] Fecha actual de Chile: ${today}`);
-    const savedData = localStorage.getItem('bennyCalculatorData');
-
-    if (savedData) {
-      console.log(`[LOAD EFFECT] Contenido raw de savedData: ${savedData.substring(0, 500)}... (truncado)`); // Log del contenido raw
-      try {
-        const parsedData = JSON.parse(savedData);
-        console.log(`[LOAD EFFECT] Datos guardados encontrados. lastSaveDate: ${parsedData.lastSaveDate}`);
-        console.log(`[LOAD EFFECT] Comparando: lastSaveDate='${parsedData.lastSaveDate}' con today='${today}'`);
-        console.log(`[LOAD EFFECT] Resultado de la comparación de fecha: ${parsedData.lastSaveDate === today}`);
-
-        if (parsedData.lastSaveDate === today) {
-          // Si la fecha es la misma, cargar los datos guardados
-          console.log("[LOAD EFFECT] Fecha coincide. Cargando datos desde localStorage.");
-          setTramoTargets(parsedData.tramoTargets);
-          setTramoSales(parsedData.tramoSales);
-        } else {
-          // Si la fecha es diferente, limpiar los datos para un nuevo día
-          console.log("[LOAD EFFECT] Fecha diferente. Limpiando datos de localStorage para un nuevo día.");
-          localStorage.removeItem('bennyCalculatorData');
-          setTramoTargets(Array(tramoTimes.length).fill(''));
-          setTramoSales(tramoTimes.map(() => []));
-        }
-      } catch (e) {
-        console.error("Error al parsear los datos de localStorage:", e);
-        // En caso de error, limpiar los datos para evitar problemas
-        localStorage.removeItem('bennyCalculatorData');
-        setTramoTargets(Array(tramoTimes.length).fill(''));
-        setTramoSales(tramoTimes.map(() => []));
-      }
-    } else {
-      console.log("[LOAD EFFECT] No se encontraron datos guardados en localStorage.");
-    }
-
     const updateActiveTramo = () => {
       const currentMinutes = getChileanCurrentMinutes(); // Obtener la hora actual en minutos para Chile
       let activeIndex = -1;
@@ -103,7 +57,7 @@ export default function App() {
       for (let i = 0; i < tramoTimes.length; i++) {
         const [startTimeStr] = tramoTimes[i].split(' - ');
         const startMinutes = parseTime(startTimeStr);
-
+        
         // Determinar el tramo activo: la hora actual es después de la hora de inicio Y antes de la hora de inicio del próximo tramo
         if (currentMinutes >= startMinutes) {
           if (i === tramoTimes.length - 1 || currentMinutes < parseTime(tramoTimes[i+1].split(' - ')[0])) {
@@ -122,22 +76,6 @@ export default function App() {
     // Limpiar el intervalo al desmontar el componente
     return () => clearInterval(interval);
   }, []); // El array de dependencia vacío asegura que esto se ejecute solo una vez al montar
-
-  // useEffect para guardar los datos en localStorage cada vez que cambian 'tramoTargets' o 'tramoSales'
-  useEffect(() => {
-    const dataToSave = {
-      tramoTargets,
-      tramoSales,
-      lastSaveDate: getChileanCurrentDate(), // Guardar la fecha de la última modificación
-    };
-    try {
-      localStorage.setItem('bennyCalculatorData', JSON.stringify(dataToSave));
-      console.log("[SAVE EFFECT] Datos guardados en localStorage. Fecha de guardado:", dataToSave.lastSaveDate);
-      console.log(`[SAVE EFFECT] Contenido raw guardado: ${JSON.stringify(dataToSave).substring(0, 500)}... (truncado)`);
-    } catch (e) {
-      console.error("Error al guardar datos en localStorage:", e);
-    }
-  }, [tramoTargets, tramoSales]); // Guardar cuando estos estados cambian
 
   // Función auxiliar para obtener de forma segura el valor de la meta de un tramo
   const getTramoTarget = (index) => {
@@ -287,12 +225,6 @@ export default function App() {
           Ingresa las metas asignadas por tramo y tus ventas para obtener cálculos en tiempo real.
         </p>
 
-        {/* Mensaje de persistencia de datos */}
-        <div className="bg-blue-50 border-l-4 border-blue-500 text-blue-700 p-4 mb-6 rounded-md" role="alert">
-          <p className="font-bold">¡Datos guardados!</p>
-          <p className="text-sm">Tus metas y ventas se guardan automáticamente y se mantendrán hasta el final del día actual.</p>
-        </div>
-
         {/* Resumen de la Meta Diaria */}
         <div className="mb-8 p-4 bg-gray-100 border-l-4 border-gray-400 rounded-lg shadow-sm text-center">
           <label className="block text-xl font-semibold text-blue-700 mb-2">
@@ -361,8 +293,8 @@ export default function App() {
 
             if (index === currentActiveTramoIndex) {
               // Segmento activo: Verde
-              tramoBgColorClass = 'bg-green-100 border-green-500';
-              tramoRingClass = 'ring-4 ring-green-400 shadow-xl';
+              tramoBgColorClass = 'bg-green-100 border-green-500'; 
+              tramoRingClass = 'ring-4 ring-green-400 shadow-xl'; 
             }
             // Los segmentos pasados y futuros permanecen con el color predeterminado (gris).
             
@@ -476,7 +408,7 @@ export default function App() {
                     <span className={`font-bold ml-1 ${deficitCurrentTramo > 0 ? 'text-red-500' : 'text-green-500'}`}>
                       {formatCLP(deficitCurrentTramo)}
                     </span>
-                    {deficitCurrentTramo > 0 &&
+                    {deficitCurrentTramo > 0 && 
                       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" className="inline-block ml-1">
                         <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" fill="#FCD34D" stroke="#D97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"></path> {/* Amarillo con borde naranja */}
                         <line x1="12" y1="9" x2="12" y2="13" stroke="#D97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"></line>
@@ -500,7 +432,7 @@ export default function App() {
                       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" className="inline-block mr-1">
                         <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" fill="#FCD34D" stroke="#D97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"></polygon> {/* Dorado con borde naranja */}
                       </svg>
-                      ¡Tramo anterior recuperado!
+                      ¡Tramo anterior recuperado! 
                     </p>
                   )}
                   {shouldShowCombinedDeficitLine && (
@@ -509,7 +441,7 @@ export default function App() {
                       <span className={`font-bold ml-1 ${totalToReport > 0 ? 'text-red-600' : 'text-green-600'}`}>
                         {formatCLP(totalToReport)}
                       </span>
-                      {totalToReport > 0 &&
+                      {totalToReport > 0 && 
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" className="inline-block ml-1">
                           <line x1="12" y1="5" x2="12" y2="19" stroke="#EF4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"></line>
                           <polyline points="19 12 12 19 5 12" stroke="#EF4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"></polyline>
@@ -560,7 +492,7 @@ export default function App() {
             <span className={`text-3xl font-extrabold ml-1 ${remainingForDailyTarget > 0 ? 'text-red-600' : 'text-green-600'}`}>
               {formatCLP(remainingForDailyTarget)}
             </span>
-            {remainingForDailyTarget > 0 &&
+            {remainingForDailyTarget > 0 && 
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="inline-block ml-1">
                 <path d="M12 5v14m7-7l-7 7-7-7"/>
               </svg>
@@ -572,7 +504,7 @@ export default function App() {
             <span className={`font-bold ml-1 ${totalTramoDeficit > 0 ? 'text-red-600' : 'text-green-600'}`}>
               {formatCLP(totalTramoDeficit)}
             </span>
-            {totalTramoDeficit > 0 &&
+            {totalTramoDeficit > 0 && 
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" className="inline-block ml-1">
                 <line x1="12" y1="5" x2="12" y2="19" stroke="#EF4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"></line>
                 <polyline points="19 12 12 19 5 12" stroke="#EF4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"></polyline>
@@ -588,9 +520,9 @@ export default function App() {
           <img
             src="src/assets/benny-logo.jpeg"
             alt="Benny Logo"
-            className="mx-auto mt-4 rounded-full shadow-lg"
-            style={{ width: 'auto', height: 'auto', maxWidth: '100px', maxHeight: '100px' }}
-            onError={(e) => { e.target.onerror = null; e.target.src='https://placehold.co/100x100/cccccc/333333?text=Logo' }}
+            className="mx-auto mt-4 rounded-full shadow-lg" // Elimina w-20 h-20
+            style={{ width: 'auto', height: 'auto', maxWidth: '100px', maxHeight: '100px' }} // Permite dimensiones intrínsecas, con un max-size opcional
+            onError={(e) => { e.target.onerror = null; e.target.src='https://placehold.co/100x100/cccccc/333333?text=Logo' }} // Ajusta placeholder al mismo tamaño asumido
           />
         </footer>
       </div>
