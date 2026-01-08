@@ -38,6 +38,12 @@ const parseInputCurrency = (val) => {
 export default function App() {
   // Inicialización de estados desde localStorage para evitar el reset en el primer render
   const getInitialState = () => {
+    // Verificamos si estamos en el navegador para evitar errores en SSR (Server Side Rendering)
+    if (typeof window === 'undefined') return {
+      targets: Array(TRAMOS_HORARIOS.length).fill(''),
+      salesData: TRAMOS_HORARIOS.map(() => [])
+    };
+
     const savedData = localStorage.getItem('benny_tracker_storage');
     const today = new Date().toDateString();
     
